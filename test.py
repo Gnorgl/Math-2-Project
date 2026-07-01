@@ -13,7 +13,7 @@ U = np.ones((GRID_SIZE, GRID_SIZE))
 V = np.zeros((GRID_SIZE, GRID_SIZE))
 
 # SPATIAL PERTURBATION: Drop a small square match in the center
-center = GRID_SIZE // 2
+center = GRID_SIZE // 2 # Floor division operator
 U[center-5:center+5, center-5:center+5] = 0.50
 V[center-5:center+5, center-5:center+5] = 0.25
 

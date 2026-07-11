@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from matplotlib.widgets import Slider, Button, TextBox
+from matplotlib.widgets import Slider, Button, TextBox, RadioButtons
 
 def initialize_grid(N=100):
     """Sets up the initial state: saturated U, empty V."""
@@ -45,46 +45,73 @@ def run_simulation_step(U, V, F, k, Du=0.16, Dv=0.08, dt=1.0):
     return U, V
 
 # =====================================================================
-# INTERFACE INITIALIZATION & REFORMATTING
+# SYSTEM PRESETS DATA STORE
+# =====================================================================
+PRESETS = {
+    "Default Baseline":           (0.035, 0.060),
+    "Spot Mitosis":               (0.026, 0.053),
+    "Chaos / Waves":              (0.014, 0.047),
+    "Stable Labyrinths":          (0.055, 0.062),
+    "Solitons / Moving Spots":    (0.030, 0.062),
+    "U-Skate World":              (0.062, 0.061)
+}
+
+# =====================================================================
+# USER INTERFACE SETUP
 # =====================================================================
 
 N = 100
 U, V = initialize_grid(N=N)
-U, V = inject_activator(U, V) # Seed initial state
+U, V = inject_activator(U, V)
 
-fig, ax = plt.subplots(figsize=(8, 8))
-plt.subplots_adjust(bottom=0.25)
+fig, ax = plt.subplots(figsize=(10, 8)) # Widened to provide side panel room
+plt.subplots_adjust(bottom=0.25, right=0.72) # Leaves clean margins right and bottom
 
 im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5)
-ax.set_title("Gray-Scott Sandbox")
 ax.axis('off')
 
-# UI Axis Layouts
+# UI Axes Layout Mapping
+ax_radio      = plt.axes([0.76, 0.35, 0.20, 0.30]) # Dedicated right-hand panel
+
 ax_f          = plt.axes([0.15, 0.16, 0.45, 0.03])
 ax_box_f      = plt.axes([0.65, 0.16, 0.08, 0.03])
 
 ax_k          = plt.axes([0.15, 0.10, 0.45, 0.03])
 ax_box_k      = plt.axes([0.65, 0.10, 0.08, 0.03])
 
-ax_btn_inject = plt.axes([0.76, 0.15, 0.15, 0.04])
-ax_btn_reset  = plt.axes([0.76, 0.10, 0.15, 0.04])
+ax_btn_inject = plt.axes([0.76, 0.15, 0.18, 0.04])
+ax_btn_reset  = plt.axes([0.76, 0.10, 0.18, 0.04])
 
-# Sliders: We initialize them with standard formatting to prevent internal crashes
+# Widget Configurations
+radio_menu = RadioButtons(ax_radio, list(PRESETS.keys()), active=0)
+
+# Configure sliders with standard formatting to avoid internal crashes
 slider_F = Slider(ax_f, 'Feed (F)', 0.01, 0.09, valinit=0.035, valfmt="%.4f")
 slider_k = Slider(ax_k, 'Kill (k)', 0.04, 0.07, valinit=0.060, valfmt="%.4f")
 
-# Explicitly turn off the visibility of the native built-in text labels
+# Explicitly hide the native built-in text labels to leave room for the text box readouts
 slider_F.valtext.set_visible(False)
 slider_k.valtext.set_visible(False)
 
-# TextBoxes act as the exclusive real-time readout indicator
 text_F = TextBox(ax_box_f, '', initial=f"{slider_F.val:.4f}")
 text_k = TextBox(ax_box_k, '', initial=f"{slider_k.val:.4f}")
 
 btn_inject = Button(ax_btn_inject, 'Inject V')
 btn_reset  = Button(ax_btn_reset, 'Reset System')
 
-# Callback Actions
+# Interactive Callbacks
+def preset_callback(selected_label):
+    global U, V
+    new_F, new_k = PRESETS[selected_label]
+    slider_F.set_val(new_F)
+    slider_k.set_val(new_k)
+    text_F.set_val(f"{new_F:.4f}")
+    text_k.set_val(f"{new_k:.4f}")
+    U, V = initialize_grid(N=N)
+    U, V = inject_activator(U, V)
+
+radio_menu.on_clicked(preset_callback)
+
 def inject_callback(event):
     global U, V
     U, V = inject_activator(U, V)
@@ -96,6 +123,8 @@ def reset_callback(event):
     U, V = inject_activator(U, V)
     slider_F.set_val(0.035)
     slider_k.set_val(0.060)
+    # Safely reset the radio panel display element
+    radio_menu.set_active(0)
 btn_reset.on_clicked(reset_callback)
 
 def submit_F(text_value):
@@ -117,14 +146,13 @@ def submit_k(text_value):
 text_F.on_submit(submit_F)
 text_k.on_submit(submit_k)
 
-# Synchronization wrapper: updates text boxes when sliders are dragged
 def update_readouts(val):
     text_F.set_val(f"{slider_F.val:.4f}")
     text_k.set_val(f"{slider_k.val:.4f}")
 slider_F.on_changed(update_readouts)
 slider_k.on_changed(update_readouts)
 
-# Runtime Execution Loop
+# Runtime Evaluation Step Link
 def update_frame(frame_number):
     global U, V
     current_F = slider_F.val

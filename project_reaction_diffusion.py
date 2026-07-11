@@ -16,25 +16,20 @@ Gian Isikli: gisikli@stud.hs-bremen.de
 """
 
 def initialize_grid(N=100):
-    """Sets up the baseline continuous fields: fully saturated U, empty V."""
     U = np.ones((N, N), dtype=np.float64)
     V = np.zeros((N, N), dtype=np.float64)
     return U, V
 
 def inject_chaotic_noise(U, V):
-    """Wipes the current grid and injects a center seed plus 15 randomized micro-seeds."""
     N = U.shape[0]
     mid = N // 2
     
-    # Clear the fields back to a uniform baseline matrix first
     U.fill(1.0)
     V.fill(0.0)
     
-    # Re-inject center seed
     U[mid-4:mid+4, mid-4:mid+4] = 0.50
     V[mid-4:mid+4, mid-4:mid+4] = 0.25
     
-    # Re-scatter 15 random micro-seeds for chaotic/moving spot regimes
     np.random.seed(42) 
     for _ in range(15):
         rx = np.random.randint(10, N - 10)
@@ -44,21 +39,17 @@ def inject_chaotic_noise(U, V):
     return U, V
 
 def inject_center_only(U, V):
-    """Wipes the current grid and injects only one clean central patch of V."""
     N = U.shape[0]
     mid = N // 2
     
-    # Clear the fields back to a uniform baseline matrix first
     U.fill(1.0)
     V.fill(0.0)
     
-    # Single isolated center patch
     U[mid-5:mid+5, mid-5:mid+5] = 0.50
     V[mid-5:mid+5, mid-5:mid+5] = 0.25
     return U, V
 
 def calculate_laplacian(A):
-    """Approximates spatial diffusion using a 5-point discrete finite-difference stencil."""
     neighbor_right = np.roll(A, shift=-1, axis=1)
     neighbor_left  = np.roll(A, shift=1,  axis=1)
     neighbor_down  = np.roll(A, shift=-1, axis=0)
@@ -66,7 +57,6 @@ def calculate_laplacian(A):
     return neighbor_right + neighbor_left + neighbor_down + neighbor_up - 4.0 * A
 
 def run_simulation_step(U, V, F, k, Du=0.16, Dv=0.08, dt=1.0):
-    """Executes a single Forward-Euler temporal integration step."""
     lap_U = calculate_laplacian(U)
     lap_V = calculate_laplacian(V)
     
@@ -100,15 +90,14 @@ PRESETS = {
 
 N = 100
 U, V = initialize_grid(N=N)
-U, V = inject_chaotic_noise(U, V) # Standard startup with noise
+U, V = inject_chaotic_noise(U, V)
 
 fig, ax = plt.subplots(figsize=(10, 8))
 plt.subplots_adjust(bottom=0.25, right=0.72)
 
-im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5)
+im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5) #vielleicht noch andere color map, mal gucken
 ax.axis('off')
 
-# UI Axes Layout Mapping
 ax_radio          = plt.axes([0.76, 0.40, 0.20, 0.30])
 
 ax_f              = plt.axes([0.15, 0.16, 0.45, 0.03])
@@ -121,7 +110,6 @@ ax_btn_center     = plt.axes([0.76, 0.20, 0.18, 0.04])
 ax_btn_noise      = plt.axes([0.76, 0.15, 0.18, 0.04])
 ax_btn_reset      = plt.axes([0.76, 0.10, 0.18, 0.04])
 
-# Widget Configurations
 radio_menu = RadioButtons(ax_radio, list(PRESETS.keys()), active=0)
 
 slider_F = Slider(ax_f, 'Feed (F)', 0.01, 0.09, valinit=0.032, valfmt="%.4f")
@@ -136,7 +124,6 @@ btn_center = Button(ax_btn_center, 'Inject Center Only')
 btn_noise  = Button(ax_btn_noise, 'Add Noise Seeds')
 btn_reset  = Button(ax_btn_reset, 'Reset System')
 
-# Interactive Callbacks
 def preset_callback(selected_label):
     global U, V
     new_F, new_k = PRESETS[selected_label]
@@ -156,7 +143,6 @@ btn_center.on_clicked(center_callback)
 
 def noise_callback(event):
     global U, V
-    # Simply layers additional noise seeds into whatever is running
     U, V = inject_chaotic_noise(U, V)
 btn_noise.on_clicked(noise_callback)
 
@@ -196,7 +182,6 @@ def update_readouts(val):
 slider_F.on_changed(update_readouts)
 slider_k.on_changed(update_readouts)
 
-# Runtime Evaluation Step Link
 def update_frame(frame_number):
     global U, V
     current_F = slider_F.val

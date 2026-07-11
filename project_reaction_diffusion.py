@@ -6,7 +6,7 @@ from matplotlib.widgets import Slider, Button, TextBox, RadioButtons
 
 
 """
-Gruppe:
+Gruppe: Modeling Biological Pattern Formation via Gray-Scott Reaction-Diffusion Systems
 
 Richard Schröder: rschroeder@stud.hs-bremen.de
 Khang Pham: kpham@stud.hs-bremen.de
@@ -108,7 +108,7 @@ plt.subplots_adjust(bottom=0.25, right=0.72)
 im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5)
 ax.axis('off')
 
-# UI Axes Layout Mapping (Adjusted heights to fit 3 buttons cleanly)
+# UI Axes Layout Mapping
 ax_radio          = plt.axes([0.76, 0.40, 0.20, 0.30])
 
 ax_f              = plt.axes([0.15, 0.16, 0.45, 0.03])

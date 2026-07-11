@@ -3,6 +3,18 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Slider, Button, TextBox, RadioButtons
 
+
+
+"""
+Gruppe:
+
+Richard Schröder: rschroeder@stud.hs-bremen.de
+Khang Pham: kpham@stud.hs-bremen.de
+Finn Rusche: frusche@stud.hs-bremen.de
+Gian Isikli: gisikli@stud.hs-bremen.de
+
+"""
+
 def initialize_grid(N=100):
     """Sets up the baseline continuous fields: fully saturated U, empty V."""
     U = np.ones((N, N), dtype=np.float64)

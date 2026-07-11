@@ -3,17 +3,47 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import Slider, Button, TextBox, RadioButtons
 
-
-
 """
 Gruppe: Modeling Biological Pattern Formation via Gray-Scott Reaction-Diffusion Systems
 
-Richard Schröder: rschroeder@stud.hs-bremen.de
+Richard Schroeder: rschroeder@stud.hs-bremen.de
 Khang Pham: kpham@stud.hs-bremen.de
 Finn Rusche: frusche@stud.hs-bremen.de
 Gian Isikli: gisikli@stud.hs-bremen.de
-
 """
+
+def verify_stability_criterion(dt, dx, Du, Dv):
+    max_diffusion = max(Du, Dv)
+    stability_limit = (dx**2) / (4 * max_diffusion)
+
+    print("--- SOLVER STABILITY ANALYSIS ---")
+    print(f"Max Diffusion Coefficient: {max_diffusion}")
+    print(f"Mathematical Stability Limit for dt: <= {stability_limit:.4f}")
+    print(f"Your Selected dt: {dt}")
+
+    if dt <= stability_limit:
+        print("RESULT: [PASSED] The system parameters are numerically stable.\n")
+        return True
+    else:
+        print("RESULT: [CRITICAL FAILURE] The current grid parameters risk numerical explosion!")
+        print(f"Please lower your dt or adjust spatial dimensions.\n")
+        return False
+
+def print_solver_metrics(frame, U, V, V_prev):
+    mean_u = np.mean(U)
+    mean_v = np.mean(V)
+
+    dv_dt = np.mean(np.abs(V - V_prev))
+    
+    l2_norm = np.linalg.norm(V) / np.sqrt(V.size)
+    
+    print(
+        f"[Frame {frame:05d}]  "
+        f"Mean U: {mean_u:.5f} | "
+        f"Mean V: {mean_v:.5f} | "
+        f"dV/dt: {dv_dt:.6f} | "
+        f"L2-Norm: {l2_norm:.4f}"
+    )
 
 def initialize_grid(N=100):
     U = np.ones((N, N), dtype=np.float64)
@@ -21,6 +51,7 @@ def initialize_grid(N=100):
     return U, V
 
 def inject_chaotic_noise(U, V):
+    global V_prev
     N = U.shape[0]
     mid = N // 2
     
@@ -36,9 +67,12 @@ def inject_chaotic_noise(U, V):
         ry = np.random.randint(10, N - 10)
         U[rx-2:rx+2, ry-2:ry+2] = 0.50
         V[rx-2:rx+2, ry-2:ry+2] = 0.25
+        
+    V_prev = V.copy()
     return U, V
 
 def inject_center_only(U, V):
+    global V_prev
     N = U.shape[0]
     mid = N // 2
     
@@ -47,6 +81,8 @@ def inject_center_only(U, V):
     
     U[mid-5:mid+5, mid-5:mid+5] = 0.50
     V[mid-5:mid+5, mid-5:mid+5] = 0.25
+    
+    V_prev = V.copy()
     return U, V
 
 def calculate_laplacian(A):
@@ -74,6 +110,22 @@ def run_simulation_step(U, V, F, k, Du=0.16, Dv=0.08, dt=1.0):
     return U, V
 
 # =====================================================================
+# SYSTEM CONFIGURATION
+# =====================================================================
+N = 100
+dx = 1.0
+dt = 1.0
+Du_val = 0.16
+Dv_val = 0.08
+
+if not verify_stability_criterion(dt, dx, Du_val, Dv_val):
+    print("Warning: Stability criteria violated. Proceeding with caution...")
+
+U, V = initialize_grid(N=N)
+V_prev = V.copy()
+U, V = inject_chaotic_noise(U, V)
+
+# =====================================================================
 # SYSTEM PRESETS DATA STORE
 # =====================================================================
 PRESETS = {
@@ -87,22 +139,15 @@ PRESETS = {
 # =====================================================================
 # USER INTERFACE SETUP
 # =====================================================================
-
-N = 100
-U, V = initialize_grid(N=N)
-U, V = inject_chaotic_noise(U, V)
-
 fig, ax = plt.subplots(figsize=(10, 8))
 plt.subplots_adjust(bottom=0.25, right=0.72)
 
-im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5) #vielleicht noch andere color map, mal gucken
+im = ax.imshow(V, cmap='inferno', animated=True, vmin=0.0, vmax=0.5) # maybe different cmap
 ax.axis('off')
 
 ax_radio          = plt.axes([0.76, 0.40, 0.20, 0.30])
-
 ax_f              = plt.axes([0.15, 0.16, 0.45, 0.03])
 ax_box_f          = plt.axes([0.65, 0.16, 0.08, 0.03])
-
 ax_k              = plt.axes([0.15, 0.10, 0.45, 0.03])
 ax_box_k          = plt.axes([0.65, 0.10, 0.08, 0.03])
 
@@ -124,6 +169,9 @@ btn_center = Button(ax_btn_center, 'Inject Center Only')
 btn_noise  = Button(ax_btn_noise, 'Add Noise Seeds')
 btn_reset  = Button(ax_btn_reset, 'Reset System')
 
+# =====================================================================
+# INTERACTIVE CALL BACK CALLBACKS
+# =====================================================================
 def preset_callback(selected_label):
     global U, V
     new_F, new_k = PRESETS[selected_label]
@@ -182,14 +230,24 @@ def update_readouts(val):
 slider_F.on_changed(update_readouts)
 slider_k.on_changed(update_readouts)
 
+# =====================================================================
+# RENDER LOOP AND TERM METRICS LOGGING
+# =====================================================================
+print("--- STARTING GRAY-SCOTT SIMULATION ENGINE ---")
+
 def update_frame(frame_number):
-    global U, V
+    global U, V, V_prev
     current_F = slider_F.val
     current_k = slider_k.val
     
     steps_per_frame = 30
     for _ in range(steps_per_frame):
-        U, V = run_simulation_step(U, V, F=current_F, k=current_k)
+        U, V = run_simulation_step(U, V, F=current_F, k=current_k, Du=Du_val, Dv=Dv_val, dt=dt)
+        
+    if frame_number % 10 == 0:
+        actual_time_step = frame_number * steps_per_frame
+        print_solver_metrics(actual_time_step, U, V, V_prev)
+        V_prev = V.copy()
         
     im.set_array(V)
     ax.set_title(f"Gray-Scott Sandbox | F = {current_F:.4f} | k = {current_k:.4f}")
